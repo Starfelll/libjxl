@@ -411,6 +411,11 @@ struct CompressArgs {
         "the frame index box.",
         &frame_indexing, &ParseString, 1);
 
+    cmdline->AddOptionValue(
+        '\0', "variant", "string",
+        "variant image file path",
+        &variant, &ParseString, 1);
+
     cmdline->AddOptionFlag(
         '\0', "allow_expert_options",
         "Allow specifying advanced options; at the moment, this allows setting "
@@ -490,6 +495,7 @@ struct CompressArgs {
   size_t effort = 7;
   size_t brotli_effort = 9;
   std::string frame_indexing;
+  std::string variant;
 
   bool allow_expert_options = false;
 
@@ -982,6 +988,59 @@ int main(int argc, char** argv) {
     if (!status) {
       std::cerr << "Getting pixel data failed." << std::endl;
       exit(EXIT_FAILURE);
+    }
+    if (!args.variant.empty()) {
+      std::vector<uint8_t> variant_image_data;
+      jxl::extras::PackedPixelFile vppf;
+
+      jpegxl::tools::ReadFile(args.variant.c_str(), &variant_image_data);
+      
+      status = jpegxl::tools::GetPixeldata(variant_image_data, 
+          args.color_hints,  vppf, codec);
+      if (!status) {
+        std::cerr << "Getting variant set pixel data failed." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+
+      if (!vppf.frames.empty()) {
+        auto &vppf_frame = vppf.frames.front();
+        vppf_frame.name = jpegxl::tools::BaseName(args.variant_set);
+        
+        auto &ppf_frame = ppf.frames.front();
+        ppf_frame.name = jpegxl::tools::BaseName(args.file_in);
+
+        if (ppf_frame.color.format.data_type != JXL_TYPE_UINT8 
+            || vppf_frame.color.format.data_type != JXL_TYPE_UINT8) {
+          std::cerr << "Variant pixel data type unsupported." << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        if (ppf_frame.color.pixels_size != vppf_frame.color.pixels_size) {
+          std::cerr << "Variant pixel size don't match." << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        const size_t pixel_stride = sizeof(uint32_t);
+        for (size_t pI = 0; pI < ppf_frame.color.pixels_size; pI += pixel_stride) {
+          auto *pixel_ppf = reinterpret_cast<uint32_t*>(
+            reinterpret_cast<uint8_t*>(ppf_frame.color.pixels()) + pI);
+          auto *pixel_vppf = reinterpret_cast<uint32_t*>(
+            reinterpret_cast<uint8_t*>(vppf_frame.color.pixels()) + pI);
+
+          if (*pixel_ppf == *pixel_vppf) {
+            *pixel_vppf = 0;
+          }
+
+
+        }
+
+        ppf_frame.frame_info.layer_info.save_as_reference = 1;
+        vppf_frame.frame_info.layer_info.blend_info.source = 1;
+        vppf_frame.frame_info.layer_info.blend_info.blendmode = JXL_BLEND_BLEND;
+        
+        ppf.frames.push_back(std::move(vppf_frame));
+        
+      }
     }
     if (ppf.frames.empty()) {
       std::cerr << "No frames on input file." << std::endl;

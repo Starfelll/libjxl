@@ -73,15 +73,29 @@ class APNGEncoder : public Encoder {
                 ThreadPool* pool) const override {
     JXL_RETURN_IF_ERROR(VerifyBasicInfo(ppf.info));
     encoded_image->icc.clear();
-    encoded_image->bitstreams.resize(1);
-    return EncodePackedPixelFileToAPNG(ppf, pool,
-                                       &encoded_image->bitstreams.front());
+    
+    if (!ppf.info.have_animation && ppf.frames.size() != 1) {
+      encoded_image->bitstreams.resize(ppf.frames.size());
+      for (size_t i = 0; i < ppf.frames.size(); i++) {
+        auto result = EncodePackedPixelFileToAPNG(ppf, pool, 
+                                        &encoded_image->bitstreams.at(i), i);
+        if (!result) {
+          return result;
+        }
+      }
+    } else {
+      encoded_image->bitstreams.resize(1);
+      return EncodePackedPixelFileToAPNG(ppf, pool, 
+                                        &encoded_image->bitstreams.front());
+    }
+    return true;
   }
 
  private:
   Status EncodePackedPixelFileToAPNG(const PackedPixelFile& ppf,
                                      ThreadPool* pool,
-                                     std::vector<uint8_t>* bytes) const;
+                                     std::vector<uint8_t>* bytes,
+                                     size_t frameIndex = -1) const;
 };
 
 static void PngWrite(png_structp png_ptr, png_bytep data, png_size_t length) {
@@ -197,7 +211,7 @@ void MaybeAddCICP(JxlColorEncoding c_enc, png_structp png_ptr,
 
 Status APNGEncoder::EncodePackedPixelFileToAPNG(
     const PackedPixelFile& ppf, ThreadPool* pool,
-    std::vector<uint8_t>* bytes) const {
+    std::vector<uint8_t>* bytes, size_t frameIndex) const {
   size_t xsize = ppf.info.xsize;
   size_t ysize = ppf.info.ysize;
   bool has_alpha = ppf.info.alpha_bits != 0;
@@ -205,15 +219,23 @@ Status APNGEncoder::EncodePackedPixelFileToAPNG(
   size_t color_channels = ppf.info.num_color_channels;
   size_t num_channels = color_channels + (has_alpha ? 1 : 0);
   size_t num_samples = num_channels * xsize * ysize;
+  bool have_animation = ppf.info.have_animation;
+  const std::vector<PackedFrame>& frames = ppf.frames;
+  auto iter = frames.begin();
 
-  if (!ppf.info.have_animation && ppf.frames.size() != 1) {
-    return JXL_FAILURE("Invalid number of frames");
+  if (frameIndex >= 0) {
+    have_animation = false;
+    iter += frameIndex;
   }
 
   size_t count = 0;
   size_t anim_chunks = 0;
 
-  for (const auto& frame : ppf.frames) {
+  for (;iter != frames.end(); iter++) {
+    const auto& frame  = *iter;
+    if (frameIndex > -1 && count > 0) {
+        break;
+    }
     JXL_RETURN_IF_ERROR(VerifyPackedImage(frame.color, ppf.info));
 
     const PackedImage& color = frame.color;
@@ -297,10 +319,10 @@ Status APNGEncoder::EncodePackedPixelFileToAPNG(
       bytes->resize(pos);
     }
 
-    if (ppf.info.have_animation) {
+    if (have_animation) {
       if (count == 0) {
         png_byte adata[8];
-        png_save_uint_32(adata, ppf.frames.size());
+        png_save_uint_32(adata, frames.size());
         png_save_uint_32(adata + 4, ppf.info.animation.num_loops);
         png_byte actl[5] = "acTL";
         png_write_chunk(png_ptr, actl, adata, 8);
@@ -351,7 +373,7 @@ Status APNGEncoder::EncodePackedPixelFileToAPNG(
     }
 
     count++;
-    if (count == ppf.frames.size() || !ppf.info.have_animation) {
+    if (count == frames.size() || !have_animation) {
       png_write_end(png_ptr, NULL);
     }
 

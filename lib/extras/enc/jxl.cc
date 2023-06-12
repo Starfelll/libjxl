@@ -178,6 +178,11 @@ bool EncodeImageJXL(const JXLCompressParams& params, const PackedPixelFile& ppf,
         fprintf(stderr, "JxlEncoderSetFrameHeader() failed.\n");
         return false;
       }
+      if (JXL_ENC_SUCCESS != 
+          JxlEncoderSetFrameName(settings, pframe.name.c_str())) {
+        fprintf(stderr, "JxlEncoderSetFrameName() failed.\n");
+        return false;
+      }
       if (!SetFrameOptions(params.options, num_frame, &option_idx, settings)) {
         return false;
       }

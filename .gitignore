@@ -2,6 +2,7 @@
 /build
 /build*
 /docker/*.log
+.cache
 
 # The downloaded corpora files for benchmark.
 /third_party/corpora

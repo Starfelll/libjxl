@@ -151,6 +151,10 @@ struct DecompressArgs {
                            "Print total number of decoded bytes.",
                            &print_read_bytes, &SetBooleanTrue);
 
+    cmdline->AddOptionFlag('\0', "export_layers",
+                           "Export layers to separate files.",
+                           &export_layers, &SetBooleanTrue);
+
     cmdline->AddOptionFlag('\0', "quiet", "Silence output (except for errors).",
                            &quiet, &SetBooleanTrue);
   }
@@ -185,6 +189,7 @@ struct DecompressArgs {
   std::string orig_icc_out;
   std::string metadata_out;
   bool print_read_bytes = false;
+  bool export_layers = false;
   bool quiet = false;
   // References (ids) of specific options to check if they were matched.
   CommandLineParser::OptionId opt_bits_per_sample_id = -1;
@@ -267,6 +272,7 @@ bool DecompressJxlToPackedPixelFile(
   dparams.runner = JxlThreadParallelRunner;
   dparams.runner_opaque = runner;
   dparams.allow_partial_input = args.allow_partial_files;
+  dparams.oalescing = !args.export_layers;
   if (args.bits_per_sample == 0) {
     dparams.output_bitdepth.type = JXL_BIT_DEPTH_FROM_CODESTREAM;
   } else if (args.bits_per_sample > 0) {

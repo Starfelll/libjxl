@@ -56,6 +56,8 @@ struct JXLDecompressParams {
 
   // Controls the effective bit depth of the output pixels.
   JxlBitDepth output_bitdepth = {JXL_BIT_DEPTH_FROM_PIXEL_FORMAT, 0, 0};
+
+  bool oalescing = true;
 };
 
 bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
