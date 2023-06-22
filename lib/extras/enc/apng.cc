@@ -95,7 +95,7 @@ class APNGEncoder : public Encoder {
   Status EncodePackedPixelFileToAPNG(const PackedPixelFile& ppf,
                                      ThreadPool* pool,
                                      std::vector<uint8_t>* bytes,
-                                     size_t frameIndex = -1) const;
+                                     int frameIndex = -1) const;
 };
 
 static void PngWrite(png_structp png_ptr, png_bytep data, png_size_t length) {
@@ -211,7 +211,7 @@ void MaybeAddCICP(JxlColorEncoding c_enc, png_structp png_ptr,
 
 Status APNGEncoder::EncodePackedPixelFileToAPNG(
     const PackedPixelFile& ppf, ThreadPool* pool,
-    std::vector<uint8_t>* bytes, size_t frameIndex) const {
+    std::vector<uint8_t>* bytes, int frameIndex) const {
   size_t xsize = ppf.info.xsize;
   size_t ysize = ppf.info.ysize;
   bool has_alpha = ppf.info.alpha_bits != 0;

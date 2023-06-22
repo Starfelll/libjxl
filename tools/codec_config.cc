@@ -23,6 +23,8 @@ std::string CodecConfigString(uint32_t lib_version) {
     config += version_str;
   }
 
+  config = "(Starfelll Mod) " + config;
+
   std::string version = kJpegxlVersion;
   if (version != "(unknown)") {
     config += version + ' ';

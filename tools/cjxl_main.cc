@@ -1004,10 +1004,10 @@ int main(int argc, char** argv) {
 
       if (!vppf.frames.empty()) {
         auto &vppf_frame = vppf.frames.front();
-        vppf_frame.name = jpegxl::tools::BaseName(args.variant_set);
+        vppf_frame.name = jpegxl::tools::GetBaseName(args.variant);
         
         auto &ppf_frame = ppf.frames.front();
-        ppf_frame.name = jpegxl::tools::BaseName(args.file_in);
+        ppf_frame.name = jpegxl::tools::GetBaseName(args.file_in);
 
         if (ppf_frame.color.format.data_type != JXL_TYPE_UINT8 
             || vppf_frame.color.format.data_type != JXL_TYPE_UINT8) {

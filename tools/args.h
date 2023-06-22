@@ -95,9 +95,8 @@ static inline bool IncrementUnsigned(size_t* out) {
   return true;
 }
 
-static inline std::string BaseName(std::string path) {
-  auto pos = path.find_last_of("//");
-  return std::string(path.substr(pos + 1));
+static inline std::string GetBaseName(std::string path) {
+  return path.substr(path.find_last_of("/\\") + 1);
 }
 
 }  // namespace tools
